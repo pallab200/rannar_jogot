@@ -1,0 +1,39 @@
+name: Prefetch Feeds
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-feeds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Regenerate feed snapshots
+        run: dart run -DYOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} tool/prefetch_feeds.dart --output prefetched_feeds
+
+      - name: Commit updated feeds
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- prefetched_feeds; then
+            echo "No prefetched feed changes."
+            exit 0
+          fi
+          git add prefetched_feeds
+          git commit -m "chore: refresh prefetched feeds"
+          git push
