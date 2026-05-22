@@ -81,20 +81,32 @@ class VideoCard extends StatelessWidget {
                         ),
                       ),
                       if (video.viewCount != '0') ...[
+                        const SizedBox(width: 8),
                         Icon(
                           Icons.visibility_outlined,
                           size: 14,
                           color: theme.textTheme.bodySmall?.color,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          video.formattedViewCount,
-                          style: theme.textTheme.bodySmall,
+                        Flexible(
+                          child: Text(
+                            video.formattedViewCount,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
                         ),
                       ],
                       if (video.timeAgo.isNotEmpty) ...[
                         const SizedBox(width: 8),
-                        Text(video.timeAgo, style: theme.textTheme.bodySmall),
+                        Flexible(
+                          child: Text(
+                            video.timeAgo,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -158,16 +170,24 @@ class VideoCard extends StatelessWidget {
                     Row(
                       children: [
                         if (video.viewCount != '0') ...[
-                          Text(
-                            '${video.formattedViewCount} views',
-                            style: theme.textTheme.labelSmall,
+                          Flexible(
+                            child: Text(
+                              '${video.formattedViewCount} views',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall,
+                            ),
                           ),
                           const SizedBox(width: 6),
                         ],
                         if (video.timeAgo.isNotEmpty)
-                          Text(
-                            video.timeAgo,
-                            style: theme.textTheme.labelSmall,
+                          Flexible(
+                            child: Text(
+                              video.timeAgo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall,
+                            ),
                           ),
                       ],
                     ),

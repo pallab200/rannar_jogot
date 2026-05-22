@@ -41,10 +41,13 @@ class CategoryCard extends StatelessWidget {
             Positioned(
               right: -10,
               bottom: -10,
-              child: Text(category.icon, style: const TextStyle(fontSize: 60, color: Colors.white10)),
+              child: Text(
+                category.icon,
+                style: const TextStyle(fontSize: 60, color: Colors.white10),
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -55,20 +58,24 @@ class CategoryCard extends StatelessWidget {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(category.icon, style: const TextStyle(fontSize: 24)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    category.nameEn,
-                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (category.videoCount > 0)
-                    Text(
-                      '${category.videoCount} videos',
-                      style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.8), fontSize: 11),
+                    child: Text(
+                      category.icon,
+                      style: const TextStyle(fontSize: 22),
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: Text(
+                      category.nameEn,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -84,7 +91,12 @@ class CategoryChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const CategoryChip({super.key, required this.category, required this.isSelected, required this.onTap});
+  const CategoryChip({
+    super.key,
+    required this.category,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -95,10 +107,16 @@ class CategoryChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
-          gradient: isSelected ? LinearGradient(colors: category.gradientColors) : null,
+          gradient: isSelected
+              ? LinearGradient(colors: category.gradientColors)
+              : null,
           color: isSelected ? null : Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(20),
-          border: isSelected ? null : Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+          border: isSelected
+              ? null
+              : Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.2),
+                ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -108,7 +126,9 @@ class CategoryChip extends StatelessWidget {
             Text(
               category.nameEn,
               style: GoogleFonts.poppins(
-                color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
+                color: isSelected
+                    ? Colors.white
+                    : Theme.of(context).textTheme.bodyLarge?.color,
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),

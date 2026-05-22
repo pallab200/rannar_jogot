@@ -3,6 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/video_model.dart';
 import '../utils/constants.dart';
 
+class CachedVideoFeed {
+  const CachedVideoFeed({
+    required this.videos,
+    required this.nextPageToken,
+    required this.hasContinuationState,
+  });
+
+  final List<VideoModel> videos;
+  final String? nextPageToken;
+  final bool hasContinuationState;
+}
+
 class CacheService {
   static final CacheService _instance = CacheService._internal();
   factory CacheService() => _instance;
@@ -22,11 +34,20 @@ class CacheService {
   // ─── Video Caching ───────────────────────────────────────
 
   Future<void> cacheVideos(String key, List<VideoModel> videos) async {
+    await cacheVideoFeed(key, videos: videos);
+  }
+
+  Future<void> cacheVideoFeed(
+    String key, {
+    required List<VideoModel> videos,
+    String? nextPageToken,
+  }) async {
     final p = await prefs;
     final data = {
       'version': AppConstants.videoCacheSchemaVersion,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
       'videos': videos.map((v) => v.toJson()).toList(),
+      'nextPageToken': nextPageToken,
     };
     await p.setString('${AppConstants.cacheKeyPrefix}$key', json.encode(data));
   }
@@ -35,8 +56,41 @@ class CacheService {
     String key, {
     int? maxAgeMinutes,
   }) async {
+    final cachedFeed = await getCachedVideoFeed(
+      key,
+      maxAgeMinutes: maxAgeMinutes,
+    );
+    return cachedFeed?.videos;
+  }
+
+  Future<CachedVideoFeed?> getCachedVideoFeed(
+    String key, {
+    int? maxAgeMinutes,
+  }) async {
+    final data = await _getValidCacheData(key, maxAgeMinutes: maxAgeMinutes);
+    if (data == null) {
+      return null;
+    }
+
+    final videosJson = data['videos'] as List<dynamic>? ?? const [];
+    return CachedVideoFeed(
+      videos: videosJson
+          .map((v) => VideoModel.fromJson(v as Map<String, dynamic>))
+          .toList(),
+      nextPageToken: data.containsKey('nextPageToken')
+          ? data['nextPageToken'] as String?
+          : null,
+      hasContinuationState: data.containsKey('nextPageToken'),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _getValidCacheData(
+    String key, {
+    int? maxAgeMinutes,
+  }) async {
     final p = await prefs;
-    final cached = p.getString('${AppConstants.cacheKeyPrefix}$key');
+    final storageKey = '${AppConstants.cacheKeyPrefix}$key';
+    final cached = p.getString(storageKey);
     if (cached == null) return null;
 
     try {
@@ -46,22 +100,20 @@ class CacheService {
       final now = DateTime.now().millisecondsSinceEpoch;
 
       if (version != AppConstants.videoCacheSchemaVersion) {
-        await p.remove('${AppConstants.cacheKeyPrefix}$key');
+        await p.remove(storageKey);
         return null;
       }
 
       // Check if cache is expired
       final ttlMinutes = maxAgeMinutes ?? AppConstants.cacheDurationMinutes;
       if (now - timestamp > ttlMinutes * 60 * 1000) {
-        await p.remove('${AppConstants.cacheKeyPrefix}$key');
+        await p.remove(storageKey);
         return null;
       }
 
-      final videosJson = data['videos'] as List<dynamic>;
-      return videosJson
-          .map((v) => VideoModel.fromJson(v as Map<String, dynamic>))
-          .toList();
+      return data;
     } catch (_) {
+      await p.remove(storageKey);
       return null;
     }
   }

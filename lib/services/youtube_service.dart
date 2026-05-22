@@ -3,6 +3,27 @@ import 'package:http/http.dart' as http;
 import '../models/video_model.dart';
 import '../utils/constants.dart';
 
+class YouTubeApiException implements Exception {
+  const YouTubeApiException({
+    required this.statusCode,
+    required this.message,
+    this.reason,
+    this.domain,
+    required this.responseBody,
+  });
+
+  final int statusCode;
+  final String message;
+  final String? reason;
+  final String? domain;
+  final String responseBody;
+
+  bool get isQuotaExceeded => reason == 'quotaExceeded';
+
+  @override
+  String toString() => 'YouTube API error: $statusCode - $message';
+}
+
 class YouTubeService {
   static final YouTubeService _instance = YouTubeService._internal();
   factory YouTubeService() => _instance;
@@ -60,10 +81,10 @@ class YouTubeService {
           'totalResults': data['pageInfo']?['totalResults'] ?? 0,
         };
       } else {
-        throw Exception(
-          'YouTube API error: ${response.statusCode} - ${response.body}',
-        );
+        throw _buildApiException(response);
       }
+    } on YouTubeApiException {
+      rethrow;
     } catch (e) {
       throw Exception('Failed to search videos: $e');
     }
@@ -194,5 +215,30 @@ class YouTubeService {
   bool _isEmbeddableVideo(Map<String, dynamic> item) {
     final status = item['status'] as Map<String, dynamic>? ?? const {};
     return status['embeddable'] == true;
+  }
+
+  YouTubeApiException _buildApiException(http.Response response) {
+    try {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final error = data['error'] as Map<String, dynamic>? ?? const {};
+      final errors = error['errors'] as List<dynamic>? ?? const [];
+      final firstError = errors.isEmpty
+          ? const <String, dynamic>{}
+          : errors.first as Map<String, dynamic>;
+
+      return YouTubeApiException(
+        statusCode: response.statusCode,
+        message: error['message']?.toString() ?? response.body,
+        reason: firstError['reason']?.toString(),
+        domain: firstError['domain']?.toString(),
+        responseBody: response.body,
+      );
+    } catch (_) {
+      return YouTubeApiException(
+        statusCode: response.statusCode,
+        message: response.body,
+        responseBody: response.body,
+      );
+    }
   }
 }

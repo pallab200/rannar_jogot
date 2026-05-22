@@ -2,8 +2,17 @@ name: Prefetch Feeds
 
 on:
   workflow_dispatch:
+    inputs:
+      pages:
+        description: Pages to prefetch per feed
+        required: false
+        default: '1'
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 3 * * *'
+
+concurrency:
+  group: prefetch-feeds
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -14,6 +23,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -24,7 +35,18 @@ jobs:
         run: flutter pub get
 
       - name: Regenerate feed snapshots
-        run: dart run -DYOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} tool/prefetch_feeds.dart --output prefetched_feeds
+        run: |
+          if [ -z "${{ secrets.YOUTUBE_API_KEY }}" ]; then
+            echo "YOUTUBE_API_KEY secret is not configured. Skipping feed refresh."
+            exit 0
+          fi
+
+          PAGES="${{ github.event.inputs.pages }}"
+          if [ -z "$PAGES" ]; then
+            PAGES=1
+          fi
+
+          dart run -DYOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} tool/prefetch_feeds.dart --output prefetched_feeds --pages "$PAGES"
 
       - name: Commit updated feeds
         run: |
@@ -36,4 +58,4 @@ jobs:
           fi
           git add prefetched_feeds
           git commit -m "chore: refresh prefetched feeds"
-          git push
+          git push origin HEAD:${GITHUB_REF_NAME}

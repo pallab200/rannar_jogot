@@ -325,7 +325,7 @@ class _CategoriesTab extends StatelessWidget {
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 1.3,
+                childAspectRatio: 1.2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),

@@ -195,16 +195,23 @@ class VideoProvider extends ChangeNotifier {
 
   Future<void> ensureCategoryVideosLoaded(String categoryId) async {
     if (_categoryLoading.contains(categoryId)) return;
-    if ((_categoryVideos[categoryId]?.isNotEmpty ?? false)) return;
+    if ((_categoryVideos[categoryId]?.isNotEmpty ?? false)) {
+      await _restoreCategoryPaginationState(categoryId);
+      return;
+    }
 
-    final cachedVideos = await _cacheService.getCachedVideos(
+    final cachedFeed = await _cacheService.getCachedVideoFeed(
       _categoryCacheKey(categoryId),
       maxAgeMinutes: AppConstants.feedCacheDurationMinutes,
     );
-    if (cachedVideos != null && cachedVideos.isNotEmpty) {
-      _categoryVideos[categoryId] = cachedVideos;
+    if (cachedFeed != null && cachedFeed.videos.isNotEmpty) {
+      _categoryVideos[categoryId] = cachedFeed.videos;
+      _categoryNextPageTokens[categoryId] = cachedFeed.nextPageToken;
       notifyListeners();
-      return;
+
+      if (cachedFeed.hasContinuationState) {
+        return;
+      }
     }
 
     await refreshCategoryVideos(categoryId);
@@ -216,9 +223,31 @@ class VideoProvider extends ChangeNotifier {
 
   Future<void> loadMoreCategoryVideos(String categoryId) async {
     if (_categoryLoading.contains(categoryId)) return;
+    await _restoreCategoryPaginationState(categoryId);
+    if (_categoryLoading.contains(categoryId)) return;
     if (_categoryNextPageTokens[categoryId] == null) return;
 
     await _fetchCategoryVideos(categoryId, reset: false);
+  }
+
+  Future<void> _restoreCategoryPaginationState(String categoryId) async {
+    if (_categoryLoading.contains(categoryId)) return;
+    if (_categoryNextPageTokens.containsKey(categoryId)) return;
+
+    final cachedFeed = await _cacheService.getCachedVideoFeed(
+      _categoryCacheKey(categoryId),
+      maxAgeMinutes: AppConstants.feedCacheDurationMinutes,
+    );
+
+    if (cachedFeed != null && cachedFeed.hasContinuationState) {
+      _categoryNextPageTokens[categoryId] = cachedFeed.nextPageToken;
+      notifyListeners();
+      return;
+    }
+
+    if (_categoryVideos[categoryId]?.isNotEmpty ?? false) {
+      await _fetchCategoryVideos(categoryId, reset: true);
+    }
   }
 
   Future<void> _fetchCategoryVideos(
@@ -253,9 +282,10 @@ class VideoProvider extends ChangeNotifier {
       }
 
       _categoryNextPageTokens[categoryId] = result['nextPageToken'] as String?;
-      await _cacheService.cacheVideos(
+      await _cacheService.cacheVideoFeed(
         _categoryCacheKey(categoryId),
-        _categoryVideos[categoryId] ?? fetchedVideos,
+        videos: _categoryVideos[categoryId] ?? fetchedVideos,
+        nextPageToken: _categoryNextPageTokens[categoryId],
       );
     } catch (_) {
       if (reset) {

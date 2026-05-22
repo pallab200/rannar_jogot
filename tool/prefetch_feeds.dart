@@ -23,7 +23,9 @@ Future<void> main(List<String> args) async {
   }
 
   final outputDir = Directory(outputPath);
-  await outputDir.create(recursive: true);
+  final stagingDir = Directory('${outputDir.path}_staging');
+  await _deleteDirectoryIfExists(stagingDir);
+  await stagingDir.create(recursive: true);
 
   final generatedAt = DateTime.now().toUtc();
   final youtubeService = YouTubeService();
@@ -33,70 +35,99 @@ Future<void> main(List<String> args) async {
     '(${AppConstants.maxResults} items/page, $pageCount pages/feed)...',
   );
 
-  final latestSummary = await _prefetchFeed(
-    rootDirectory: outputDir,
-    relativeSegments: const ['latest'],
-    maxPages: pageCount,
-    feedLabel: 'latest',
-    generatedAt: generatedAt,
-    fetchPage: (pageToken) => youtubeService.searchWithDetails(
-      query: AppConstants.latestFeedQuery,
-      maxResults: AppConstants.maxResults,
-      pageToken: pageToken,
-      order: 'date',
-    ),
-  );
-
-  final trendingSummary = await _prefetchFeed(
-    rootDirectory: outputDir,
-    relativeSegments: const ['trending'],
-    maxPages: pageCount,
-    feedLabel: 'trending',
-    generatedAt: generatedAt,
-    fetchPage: (pageToken) => youtubeService.getTrendingCookingVideos(
-      maxResults: AppConstants.maxResults,
-      pageToken: pageToken,
-    ),
-  );
-
-  final categorySummaries = <Map<String, dynamic>>[];
-  for (final category in CategoryData.categories) {
-    final categoryId = category['id'] as String;
-    stdout.writeln('Prefetching category: $categoryId');
-    categorySummaries.add(
-      await _prefetchFeed(
-        rootDirectory: outputDir,
-        relativeSegments: ['categories', categoryId],
-        maxPages: pageCount,
-        feedLabel: categoryId,
-        generatedAt: generatedAt,
-        fetchPage: (pageToken) => youtubeService.searchWithDetails(
-          query: _buildCategoryQuery(category),
-          maxResults: AppConstants.maxResults,
-          pageToken: pageToken,
-          order: 'date',
-        ),
+  try {
+    final latestSummary = await _prefetchFeed(
+      rootDirectory: stagingDir,
+      relativeSegments: const ['latest'],
+      maxPages: pageCount,
+      feedLabel: 'latest',
+      generatedAt: generatedAt,
+      fetchPage: (pageToken) => youtubeService.searchWithDetails(
+        query: AppConstants.latestFeedQuery,
+        maxResults: AppConstants.maxResults,
+        pageToken: pageToken,
+        order: 'date',
       ),
     );
+
+    final trendingSummary = await _prefetchFeed(
+      rootDirectory: stagingDir,
+      relativeSegments: const ['trending'],
+      maxPages: pageCount,
+      feedLabel: 'trending',
+      generatedAt: generatedAt,
+      fetchPage: (pageToken) => youtubeService.getTrendingCookingVideos(
+        maxResults: AppConstants.maxResults,
+        pageToken: pageToken,
+      ),
+    );
+
+    final categorySummaries = <Map<String, dynamic>>[];
+    for (final category in CategoryData.categories) {
+      final categoryId = category['id'] as String;
+      stdout.writeln('Prefetching category: $categoryId');
+      categorySummaries.add(
+        await _prefetchFeed(
+          rootDirectory: stagingDir,
+          relativeSegments: ['categories', categoryId],
+          maxPages: pageCount,
+          feedLabel: categoryId,
+          generatedAt: generatedAt,
+          fetchPage: (pageToken) => youtubeService.searchWithDetails(
+            query: _buildCategoryQuery(category),
+            maxResults: AppConstants.maxResults,
+            pageToken: pageToken,
+            order: 'date',
+          ),
+        ),
+      );
+    }
+
+    final manifest = {
+      'generatedAt': generatedAt.toIso8601String(),
+      'pageSize': AppConstants.maxResults,
+      'prefetchPages': pageCount,
+      'feeds': {
+        'latest': latestSummary,
+        'trending': trendingSummary,
+        'categories': categorySummaries,
+      },
+    };
+
+    final manifestFile = File(_joinPath(stagingDir.path, ['manifest.json']));
+    await manifestFile.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(manifest),
+    );
+
+    await _replaceDirectory(source: stagingDir, target: outputDir);
+
+    stdout.writeln(
+      'Prefetch complete. Manifest written to ${_joinPath(outputDir.path, ['manifest.json'])}',
+    );
+  } on YouTubeApiException catch (error) {
+    await _deleteDirectoryIfExists(stagingDir);
+
+    if (error.isQuotaExceeded) {
+      stderr.writeln(
+        'YouTube quota exceeded while refreshing feeds. '
+        'Keeping any existing prefetched snapshots unchanged.',
+      );
+
+      if (!await outputDir.exists()) {
+        stderr.writeln(
+          'No existing prefetched snapshots are available yet. '
+          'Run the workflow again after the YouTube quota resets.',
+        );
+      }
+
+      return;
+    }
+
+    rethrow;
+  } catch (_) {
+    await _deleteDirectoryIfExists(stagingDir);
+    rethrow;
   }
-
-  final manifest = {
-    'generatedAt': generatedAt.toIso8601String(),
-    'pageSize': AppConstants.maxResults,
-    'prefetchPages': pageCount,
-    'feeds': {
-      'latest': latestSummary,
-      'trending': trendingSummary,
-      'categories': categorySummaries,
-    },
-  };
-
-  final manifestFile = File(_joinPath(outputDir.path, ['manifest.json']));
-  await manifestFile.writeAsString(
-    const JsonEncoder.withIndent('  ').convert(manifest),
-  );
-
-  stdout.writeln('Prefetch complete. Manifest written to ${manifestFile.path}');
 }
 
 Future<Map<String, dynamic>> _prefetchFeed({
@@ -196,6 +227,20 @@ String _joinPath(String root, List<String> segments) {
       ..write(segment);
   }
   return buffer.toString();
+}
+
+Future<void> _replaceDirectory({
+  required Directory source,
+  required Directory target,
+}) async {
+  await _deleteDirectoryIfExists(target);
+  await source.rename(target.path);
+}
+
+Future<void> _deleteDirectoryIfExists(Directory directory) async {
+  if (await directory.exists()) {
+    await directory.delete(recursive: true);
+  }
 }
 
 void _printUsage() {
