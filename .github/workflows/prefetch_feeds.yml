@@ -27,6 +27,8 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   refresh-feeds:
@@ -60,13 +62,45 @@ jobs:
           dart run -DYOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} tool/prefetch_feeds.dart --output prefetched_feeds --pages "$PAGES"
 
       - name: Commit updated feeds
+        id: commit_feeds
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet -- prefetched_feeds; then
             echo "No prefetched feed changes."
-            exit 0
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git add prefetched_feeds
+            git commit -m "chore: refresh prefetched feeds"
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          git add prefetched_feeds
-          git commit -m "chore: refresh prefetched feeds"
-          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p site/prefetched_feeds
+          cp -R prefetched_feeds/. site/prefetched_feeds/
+          cat <<'EOF' > site/index.html
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>Rannar Jogot Feeds</title>
+            </head>
+            <body>
+              <p>Rannar Jogot prefetched feeds are published here.</p>
+            </body>
+          </html>
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
