@@ -76,9 +76,6 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
       - name: Prepare Pages artifact
         run: |
           mkdir -p site/prefetched_feeds
