@@ -29,6 +29,7 @@ Future<void> main(List<String> args) async {
 
   final generatedAt = DateTime.now().toUtc();
   final youtubeService = YouTubeService();
+  final searchIndex = <String, VideoModel>{};
 
   stdout.writeln(
     'Prefetching feeds to ${outputDir.path} '
@@ -42,6 +43,7 @@ Future<void> main(List<String> args) async {
       maxPages: pageCount,
       feedLabel: 'latest',
       generatedAt: generatedAt,
+      onVideosFetched: (videos) => _addToSearchIndex(searchIndex, videos),
       fetchPage: (pageToken) => youtubeService.searchWithDetails(
         query: AppConstants.latestFeedQuery,
         maxResults: AppConstants.maxResults,
@@ -56,6 +58,7 @@ Future<void> main(List<String> args) async {
       maxPages: pageCount,
       feedLabel: 'trending',
       generatedAt: generatedAt,
+      onVideosFetched: (videos) => _addToSearchIndex(searchIndex, videos),
       fetchPage: (pageToken) => youtubeService.getTrendingCookingVideos(
         maxResults: AppConstants.maxResults,
         pageToken: pageToken,
@@ -73,6 +76,7 @@ Future<void> main(List<String> args) async {
           maxPages: pageCount,
           feedLabel: categoryId,
           generatedAt: generatedAt,
+          onVideosFetched: (videos) => _addToSearchIndex(searchIndex, videos),
           fetchPage: (pageToken) => youtubeService.searchWithDetails(
             query: _buildCategoryQuery(category),
             maxResults: AppConstants.maxResults,
@@ -93,6 +97,12 @@ Future<void> main(List<String> args) async {
         'categories': categorySummaries,
       },
     };
+
+    await _writeSearchIndex(
+      rootDirectory: stagingDir,
+      generatedAt: generatedAt,
+      searchIndex: searchIndex,
+    );
 
     final manifestFile = File(_joinPath(stagingDir.path, ['manifest.json']));
     await manifestFile.writeAsString(
@@ -136,6 +146,7 @@ Future<Map<String, dynamic>> _prefetchFeed({
   required int maxPages,
   required String feedLabel,
   required DateTime generatedAt,
+  void Function(List<VideoModel> videos)? onVideosFetched,
   required Future<Map<String, dynamic>> Function(String? pageToken) fetchPage,
 }) async {
   final targetDir = Directory(_joinPath(rootDirectory.path, relativeSegments));
@@ -149,6 +160,7 @@ Future<Map<String, dynamic>> _prefetchFeed({
     final result = await fetchPage(sourcePageToken);
     final videos = result['videos'] as List<VideoModel>;
     final nextSourceToken = result['nextPageToken'] as String?;
+    onVideosFetched?.call(videos);
 
     final pagePayload = {
       'feed': feedLabel,
@@ -208,6 +220,36 @@ String _buildCategoryQuery(Map<String, dynamic> category) {
       .map((keyword) => keyword.toString())
       .join(' ');
   return '${category['nameEn']} $keywords বাংলাদেশী রান্না recipe';
+}
+
+void _addToSearchIndex(
+  Map<String, VideoModel> searchIndex,
+  List<VideoModel> videos,
+) {
+  for (final video in videos) {
+    searchIndex.putIfAbsent(video.id, () => video);
+  }
+}
+
+Future<void> _writeSearchIndex({
+  required Directory rootDirectory,
+  required DateTime generatedAt,
+  required Map<String, VideoModel> searchIndex,
+}) async {
+  final searchDir = Directory(_joinPath(rootDirectory.path, ['search']));
+  await searchDir.create(recursive: true);
+
+  final videos = searchIndex.values.toList(growable: false)
+    ..sort((left, right) => right.publishedAt.compareTo(left.publishedAt));
+
+  final file = File(_joinPath(searchDir.path, ['index.json']));
+  await file.writeAsString(
+    const JsonEncoder.withIndent('  ').convert({
+      'generatedAt': generatedAt.toIso8601String(),
+      'totalVideos': videos.length,
+      'videos': videos.map((video) => video.toJson()).toList(),
+    }),
+  );
 }
 
 String? _readOption(List<String> args, String name) {

@@ -263,16 +263,24 @@ class _HomeTab extends StatelessWidget {
   }
 
   Widget _errorWidget(BuildContext context, VideoProvider vp) {
+    final message = vp.errorMessage.isEmpty
+        ? 'Unable to load videos right now. Please try again.'
+        : vp.errorMessage;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 64, color: Colors.grey),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 16),
             Text(
-              'Something went wrong',
+              'Unable to load videos',
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -280,7 +288,8 @@ class _HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Check your internet connection',
+              message,
+              textAlign: TextAlign.center,
               style: GoogleFonts.poppins(color: Colors.grey),
             ),
             const SizedBox(height: 20),

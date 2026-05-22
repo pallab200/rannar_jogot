@@ -1,0 +1,74 @@
+name: Deploy Feed Site
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'prefetched_feeds/**'
+      - '.github/workflows/deploy_feed_site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-feed-site
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      has_files: ${{ steps.check.outputs.has_files }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check feed files
+        id: check
+        run: |
+          if [ -d prefetched_feeds ] && find prefetched_feeds -type f | grep -q .; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure Pages
+        if: steps.check.outputs.has_files == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Prepare site artifact
+        if: steps.check.outputs.has_files == 'true'
+        run: |
+          mkdir -p site/prefetched_feeds
+          cp -R prefetched_feeds/. site/prefetched_feeds/
+          cat <<'EOF' > site/index.html
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>Rannar Jogot Feeds</title>
+            </head>
+            <body>
+              <p>Rannar Jogot prefetched feeds are published here.</p>
+            </body>
+          </html>
+          EOF
+
+      - name: Upload Pages artifact
+        if: steps.check.outputs.has_files == 'true'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.has_files == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

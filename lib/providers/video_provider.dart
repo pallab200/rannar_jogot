@@ -97,7 +97,7 @@ class VideoProvider extends ChangeNotifier {
       _state = LoadingState.loaded;
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _buildErrorMessage(e);
       _state = LoadingState.error;
       notifyListeners();
     }
@@ -379,7 +379,7 @@ class VideoProvider extends ChangeNotifier {
       _searchNextPageToken = result['nextPageToken'] as String?;
       _searchState = LoadingState.loaded;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _buildErrorMessage(e);
       _searchState = LoadingState.error;
     }
     notifyListeners();
@@ -423,11 +423,48 @@ class VideoProvider extends ChangeNotifier {
       ]);
       _state = LoadingState.loaded;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _buildErrorMessage(e);
       _state = LoadingState.error;
     }
 
     notifyListeners();
+  }
+
+  String _buildErrorMessage(Object error) {
+    final rawMessage = error.toString();
+    final normalized = rawMessage.toLowerCase();
+
+    if (_looksLikeConnectivityIssue(normalized)) {
+      return 'No internet connection. Please check your connection and try again.';
+    }
+
+    if (normalized.contains('quotaexceeded') ||
+        normalized.contains('exceeded your quota')) {
+      return 'Video service quota is exhausted right now. Please try again later.';
+    }
+
+    if (normalized.contains('public prefetched feed is unavailable') ||
+        normalized.contains('public feed search is unavailable')) {
+      return 'Content is still publishing from GitHub. Please try again in a few minutes.';
+    }
+
+    if (normalized.contains('youtube api error: 403') ||
+        normalized.contains('forbidden') ||
+        normalized.contains('api key')) {
+      return 'Video service is unavailable right now. Please try again later.';
+    }
+
+    return 'Unable to load videos right now. Please try again.';
+  }
+
+  bool _looksLikeConnectivityIssue(String normalizedMessage) {
+    return normalizedMessage.contains('socketexception') ||
+        normalizedMessage.contains('failed host lookup') ||
+        normalizedMessage.contains('connection closed') ||
+        normalizedMessage.contains('network is unreachable') ||
+        normalizedMessage.contains('connection refused') ||
+        normalizedMessage.contains('timed out') ||
+        normalizedMessage.contains('clientexception');
   }
 
   /// Get search history

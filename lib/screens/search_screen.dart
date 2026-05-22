@@ -113,6 +113,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 }
 
                 if (vp.searchState == LoadingState.error) {
+                  final message = vp.errorMessage.isEmpty
+                      ? 'Please try again.'
+                      : vp.errorMessage;
+
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -129,7 +133,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Please try again',
+                          message,
+                          textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
@@ -277,7 +282,7 @@ class _SearchScreenState extends State<SearchScreen> {
         decoration: BoxDecoration(
           color: theme.cardTheme.color,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
         ),
         child: Text(label, style: GoogleFonts.poppins(fontSize: 12)),
       ),

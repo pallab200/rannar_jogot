@@ -1,6 +1,17 @@
 name: Prefetch Feeds
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/prefetch_feeds.yml'
+      - 'tool/prefetch_feeds.dart'
+      - 'lib/utils/constants.dart'
+      - 'lib/services/youtube_service.dart'
+      - 'lib/services/video_feed_service.dart'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
   workflow_dispatch:
     inputs:
       pages:

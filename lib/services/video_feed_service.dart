@@ -1,3 +1,4 @@
+import '../models/video_model.dart';
 import '../models/category_model.dart';
 import '../utils/constants.dart';
 import 'feed_api_service.dart';
@@ -13,8 +14,14 @@ class VideoFeedService {
   final FeedApiService _feedApiService;
   final YouTubeService _youTubeService;
 
+  bool get _canUseDirectYouTube => AppConstants.youtubeApiKey.trim().isNotEmpty;
+
   Future<Map<String, dynamic>> getLatestVideos({String? pageToken}) async {
     if (_isDirectSourceToken(pageToken)) {
+      if (!_canUseDirectYouTube) {
+        return _emptyFeedPage();
+      }
+
       return _fetchLatestFromYouTube(
         pageToken: _extractDirectSourceToken(pageToken),
       );
@@ -26,14 +33,20 @@ class VideoFeedService {
           _feedApiService.getLatestVideos(pageToken: token),
     );
     if (remote != null) {
-      return remote;
+      return _sanitizeRemoteResult(remote);
     }
+
+    _ensureDirectYouTubeIsAvailable();
 
     return _fetchLatestFromYouTube(pageToken: pageToken);
   }
 
   Future<Map<String, dynamic>> getTrendingVideos({String? pageToken}) async {
     if (_isDirectSourceToken(pageToken)) {
+      if (!_canUseDirectYouTube) {
+        return _emptyFeedPage();
+      }
+
       return _fetchTrendingFromYouTube(
         pageToken: _extractDirectSourceToken(pageToken),
       );
@@ -45,8 +58,10 @@ class VideoFeedService {
           _feedApiService.getTrendingVideos(pageToken: token),
     );
     if (remote != null) {
-      return remote;
+      return _sanitizeRemoteResult(remote);
     }
+
+    _ensureDirectYouTubeIsAvailable();
 
     return _fetchTrendingFromYouTube(pageToken: pageToken);
   }
@@ -56,6 +71,10 @@ class VideoFeedService {
     String? pageToken,
   }) async {
     if (_isDirectSourceToken(pageToken)) {
+      if (!_canUseDirectYouTube) {
+        return _emptyFeedPage();
+      }
+
       return _fetchCategoryFromYouTube(
         category,
         pageToken: _extractDirectSourceToken(pageToken),
@@ -68,8 +87,10 @@ class VideoFeedService {
           _feedApiService.getCategoryVideos(category.id, pageToken: token),
     );
     if (remote != null) {
-      return remote;
+      return _sanitizeRemoteResult(remote);
     }
+
+    _ensureDirectYouTubeIsAvailable();
 
     return _fetchCategoryFromYouTube(category, pageToken: pageToken);
   }
@@ -77,7 +98,21 @@ class VideoFeedService {
   Future<Map<String, dynamic>> searchVideos({
     required String query,
     String? pageToken,
-  }) {
+  }) async {
+    final remote = await _feedApiService.searchVideos(
+      query: query,
+      pageToken: pageToken,
+    );
+    if (remote != null) {
+      return remote;
+    }
+
+    if (!_canUseDirectYouTube) {
+      throw Exception(
+        'Public feed search is unavailable right now. Please try again in a few minutes.',
+      );
+    }
+
     return _youTubeService.searchWithDetails(
       query: '$query বাংলাদেশী রান্না',
       maxResults: AppConstants.searchMaxResults,
@@ -137,6 +172,35 @@ class VideoFeedService {
   String buildCategoryQuery(CategoryModel category) {
     final keywords = category.keywords.take(4).join(' ');
     return '${category.nameEn} $keywords বাংলাদেশী রান্না recipe';
+  }
+
+  Map<String, dynamic> _sanitizeRemoteResult(
+    Map<String, dynamic> remoteResult,
+  ) {
+    final nextPageToken = remoteResult['nextPageToken'] as String?;
+    if (_canUseDirectYouTube || !_isDirectSourceToken(nextPageToken)) {
+      return remoteResult;
+    }
+
+    return {...remoteResult, 'nextPageToken': null};
+  }
+
+  Map<String, dynamic> _emptyFeedPage() {
+    return {
+      'videos': const <VideoModel>[],
+      'nextPageToken': null,
+      'totalResults': 0,
+    };
+  }
+
+  void _ensureDirectYouTubeIsAvailable() {
+    if (_canUseDirectYouTube) {
+      return;
+    }
+
+    throw Exception(
+      'Public prefetched feed is unavailable right now. Please try again in a few minutes.',
+    );
   }
 
   bool _isRemotePageToken(String? pageToken) {

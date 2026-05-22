@@ -2,17 +2,17 @@ class AppConstants {
   // YouTube API
   static const String youtubeApiKey = String.fromEnvironment(
     'YOUTUBE_API_KEY',
-    defaultValue: 'AIzaSyDtKjoxQwWZK1zFv8BcbMB3uIyF4xI0B18',
+    defaultValue: '',
   );
   static const String youtubeBaseUrl = 'https://www.googleapis.com/youtube/v3';
   static const int maxResults = 40;
   static const int searchMaxResults = 25;
-  static const int prefetchPageCount = 2;
+  static const int prefetchPageCount = 1;
 
   // Optional remote feed server
   static const String feedApiBaseUrl = String.fromEnvironment(
     'FEED_API_BASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://pallab200.github.io/rannar_jogot/prefetched_feeds',
   );
 
   // App Info

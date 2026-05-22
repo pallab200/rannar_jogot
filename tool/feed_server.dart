@@ -64,6 +64,12 @@ File? _resolveFeedFile(String rootPath, Uri uri) {
     return File(_joinPath(rootPath, ['manifest.json']));
   }
 
+  if (segments.length == 2 &&
+      segments[0] == 'feeds' &&
+      segments[1] == 'search-index') {
+    return File(_joinPath(rootPath, ['search', 'index.json']));
+  }
+
   final page = uri.queryParameters['page'] ?? '1';
 
   if (segments.length == 2 && segments[0] == 'feeds') {
