@@ -64,6 +64,12 @@ jobs:
       - name: Commit updated feeds
         id: commit_feeds
         run: |
+          if [ ! -d prefetched_feeds ]; then
+            echo "No prefetched feed snapshot available to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet -- prefetched_feeds; then
@@ -76,7 +82,18 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check feed output
+        id: check_feeds
+        run: |
+          if [ -d prefetched_feeds ] && find prefetched_feeds -type f | grep -q .; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No prefetched feed output available to publish yet."
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Prepare Pages artifact
+        if: steps.check_feeds.outputs.has_files == 'true'
         run: |
           mkdir -p site/prefetched_feeds
           cp -R prefetched_feeds/. site/prefetched_feeds/
@@ -94,10 +111,12 @@ jobs:
           EOF
 
       - name: Upload Pages artifact
+        if: steps.check_feeds.outputs.has_files == 'true'
         uses: actions/upload-pages-artifact@v4
         with:
           path: site
 
       - name: Deploy to GitHub Pages
+        if: steps.check_feeds.outputs.has_files == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
