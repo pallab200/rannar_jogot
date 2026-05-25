@@ -10,6 +10,7 @@ import '../models/video_model.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/video_provider.dart';
 import '../services/youtube_service.dart';
+import '../utils/constants.dart';
 import '../widgets/video_card.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
@@ -56,17 +57,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
-    final isEmbeddable = await _youtubeService.isVideoEmbeddable(
-      widget.video.id,
-    );
-    if (!mounted) return;
+    if (AppConstants.youtubeApiKey.isNotEmpty) {
+      final isEmbeddable = await _youtubeService.isVideoEmbeddable(
+        widget.video.id,
+      );
+      if (!mounted) return;
 
-    if (!isEmbeddable) {
-      setState(() {
-        _isCheckingAvailability = false;
-        _isVideoAvailable = false;
-      });
-      return;
+      if (!isEmbeddable) {
+        setState(() {
+          _isCheckingAvailability = false;
+          _isVideoAvailable = false;
+        });
+        return;
+      }
     }
 
     final controller = YoutubePlayerController.fromVideoId(
