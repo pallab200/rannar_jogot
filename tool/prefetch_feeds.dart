@@ -95,6 +95,26 @@ Future<void> main(List<String> args) async {
       'Expanded category pool with $discoveryQueryCount discovery queries.',
     );
 
+    final sparseCategoryQueries = buildSparseCategoryDiscoveryQueries(
+      sourceVideos: searchIndex.values,
+      minimumVideos: AppConstants.prefetchSparseCategoryMinimumVideos,
+    );
+    final sparseCategoryQueryCount = await prefetchDiscoveryQueries(
+      queries: sparseCategoryQueries,
+      maxPagesPerQuery: AppConstants.prefetchSparseCategoryPagesPerQuery,
+      requestRateLimiter: requestRateLimiter,
+      onVideosFetched: (videos) => _addToSearchIndex(searchIndex, videos),
+      fetchPage: (query, pageToken) => youtubeService.searchWithDetails(
+        query: query,
+        maxResults: AppConstants.maxResults,
+        pageToken: pageToken,
+        order: 'relevance',
+      ),
+    );
+    stdout.writeln(
+      'Enriched sparse categories with $sparseCategoryQueryCount targeted queries.',
+    );
+
     final categorySummaries = await writeDerivedCategoryFeeds(
       rootDirectory: stagingDir,
       generatedAt: generatedAt,
@@ -300,6 +320,29 @@ Future<int> prefetchDiscoveryQueries({
   return completedQueryCount;
 }
 
+List<String> buildSparseCategoryDiscoveryQueries({
+  required Iterable<VideoModel> sourceVideos,
+  List<Map<String, dynamic>>? categories,
+  int minimumVideos = AppConstants.prefetchSparseCategoryMinimumVideos,
+}) {
+  final effectiveCategories = categories ?? CategoryData.categories;
+  final categorizedVideos = _categorizeVideos(
+    sourceVideos.toList(growable: false),
+    categories: effectiveCategories,
+  );
+
+  final queries = <String>[];
+  for (final category in effectiveCategories) {
+    final categoryId = category['id'] as String;
+    final categoryVideos = _getVideosByCategory(categorizedVideos, categoryId);
+    if (categoryVideos.length < minimumVideos) {
+      queries.add(_buildCategoryDiscoveryQuery(category));
+    }
+  }
+
+  return queries;
+}
+
 String? _publicNextPageToken({
   required int currentPage,
   required int maxPages,
@@ -459,6 +502,14 @@ String _categorizeVideo(
   }
 
   return bestScore < 2.0 ? 'general' : bestCategory;
+}
+
+String _buildCategoryDiscoveryQuery(Map<String, dynamic> category) {
+  final keywords = (category['keywords'] as List<dynamic>)
+      .take(6)
+      .map((keyword) => keyword.toString())
+      .join(' ');
+  return '${category['nameEn']} $keywords বাংলাদেশী রান্না recipe';
 }
 
 List<VideoModel> _getVideosByCategory(

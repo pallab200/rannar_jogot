@@ -9,6 +9,8 @@ class AppConstants {
   static const int searchMaxResults = 50;
   static const int prefetchPageCount = 3;
   static const int prefetchDiscoveryPagesPerQuery = 1;
+  static const int prefetchSparseCategoryPagesPerQuery = 1;
+  static const int prefetchSparseCategoryMinimumVideos = 12;
   static const int initialLatestPageCount = 2;
   static const int initialTrendingPageCount = 2;
 
@@ -44,7 +46,7 @@ class AppConstants {
   static const String favoritesKey = 'favorite_videos';
   static const String searchHistoryKey = 'search_history';
   static const String themeKey = 'dark_mode';
-  static const int videoCacheSchemaVersion = 3;
+  static const int videoCacheSchemaVersion = 4;
   static const int cacheDurationMinutes = 360;
   static const int feedCacheDurationMinutes = 360;
   static const int searchCacheDurationMinutes = 120;

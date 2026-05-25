@@ -85,6 +85,39 @@ void main() {
     expect(collectedIds, const ['fish-recipes', 'meat-recipes']);
   });
 
+  test('buildSparseCategoryDiscoveryQueries targets sparse dal category', () {
+    final queries = prefetch.buildSparseCategoryDiscoveryQueries(
+      sourceVideos: <VideoModel>[
+        _buildVideo(
+          id: 'fish-1',
+          title: 'Ilish fish curry recipe',
+          description: 'Traditional fish curry tutorial',
+        ),
+        _buildVideo(
+          id: 'fish-2',
+          title: 'Rui fish curry recipe',
+          description: 'Bangla fish cooking',
+        ),
+      ],
+      minimumVideos: 2,
+      categories: <Map<String, dynamic>>[
+        {
+          'id': 'fish',
+          'nameEn': 'Fish Curry',
+          'keywords': <String>['fish', 'ilish', 'rui'],
+        },
+        {
+          'id': 'dal',
+          'nameEn': 'Dal & Lentils',
+          'keywords': <String>['ডাল', 'dal', 'daal', 'lentil'],
+        },
+      ],
+    );
+
+    expect(queries.any((query) => query.contains('Dal & Lentils')), isTrue);
+    expect(queries.any((query) => query.contains('Fish Curry')), isFalse);
+  });
+
   test('writeDerivedCategoryFeeds builds category files from existing videos', () async {
     final rootDirectory = await Directory.systemTemp.createTemp(
       'prefetch-derived-category-test',
