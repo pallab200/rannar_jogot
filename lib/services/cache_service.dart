@@ -19,6 +19,7 @@ class CacheService {
   static final CacheService _instance = CacheService._internal();
   factory CacheService() => _instance;
   CacheService._internal();
+  CacheService.test();
 
   SharedPreferences? _prefs;
 

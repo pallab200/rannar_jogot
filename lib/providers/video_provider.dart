@@ -212,12 +212,13 @@ class VideoProvider extends ChangeNotifier {
 
   /// Get videos for a specific category
   List<VideoModel> getVideosByCategory(String categoryId) {
+    final seedVideos = _getSeedCategoryVideos(categoryId);
     final categoryFeed = _categoryVideos[categoryId];
     if (categoryFeed != null && categoryFeed.isNotEmpty) {
-      return categoryFeed;
+      return _mergeUniqueVideos(seedVideos, categoryFeed);
     }
 
-    return _categoryService.getVideosByCategory(_allVideos, categoryId);
+    return seedVideos;
   }
 
   bool isLoadingCategory(String categoryId) =>
@@ -239,7 +240,10 @@ class VideoProvider extends ChangeNotifier {
       maxAgeMinutes: AppConstants.feedCacheDurationMinutes,
     );
     if (cachedFeed != null && cachedFeed.videos.isNotEmpty) {
-      _categoryVideos[categoryId] = cachedFeed.videos;
+      _categoryVideos[categoryId] = _mergeUniqueVideos(
+        _getSeedCategoryVideos(categoryId),
+        cachedFeed.videos,
+      );
       _categoryNextPageTokens[categoryId] = cachedFeed.nextPageToken;
       notifyListeners();
 
@@ -302,12 +306,16 @@ class VideoProvider extends ChangeNotifier {
         category,
         pageToken: reset ? null : _categoryNextPageTokens[categoryId],
       );
+      final seedVideos = _getSeedCategoryVideos(categoryId);
       final fetchedVideos = (result['videos'] as List<VideoModel>)
           .map((video) => video.copyWith(category: categoryId))
           .toList();
 
       if (reset) {
-        _categoryVideos[categoryId] = fetchedVideos;
+        _categoryVideos[categoryId] = _mergeUniqueVideos(
+          seedVideos,
+          fetchedVideos,
+        );
       } else {
         _categoryVideos[categoryId] = _mergeUniqueVideos(
           _categoryVideos[categoryId] ?? const [],
@@ -323,10 +331,7 @@ class VideoProvider extends ChangeNotifier {
       );
     } catch (_) {
       if (reset) {
-        _categoryVideos[categoryId] = _categoryService.getVideosByCategory(
-          _allVideos,
-          categoryId,
-        );
+        _categoryVideos[categoryId] = _getSeedCategoryVideos(categoryId);
       }
     } finally {
       _categoryLoading.remove(categoryId);
@@ -335,6 +340,18 @@ class VideoProvider extends ChangeNotifier {
   }
 
   String _categoryCacheKey(String categoryId) => 'category_$categoryId';
+
+  List<VideoModel> _getSeedCategoryVideos(String categoryId) {
+    final localMatches = _categoryService.getVideosByCategory(
+      _allVideos,
+      categoryId,
+    );
+    final trendingMatches = _categoryService.getVideosByCategory(
+      _trendingVideos,
+      categoryId,
+    );
+    return _mergeUniqueVideos(localMatches, trendingMatches);
+  }
 
   List<VideoModel> _mergeUniqueVideos(
     List<VideoModel> existing,
