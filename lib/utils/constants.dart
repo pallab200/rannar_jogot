@@ -8,6 +8,7 @@ class AppConstants {
   static const int maxResults = 50;
   static const int searchMaxResults = 50;
   static const int prefetchPageCount = 3;
+  static const int prefetchDiscoveryPagesPerQuery = 1;
   static const int initialLatestPageCount = 2;
   static const int initialTrendingPageCount = 2;
 

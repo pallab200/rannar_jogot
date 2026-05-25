@@ -48,6 +48,43 @@ void main() {
     expect(delays, <Duration>[const Duration(seconds: 2), const Duration(seconds: 4)]);
   });
 
+  test('prefetchDiscoveryQueries collects videos from each discovery query', () async {
+    final requestedQueries = <String>[];
+    final requestedPageTokens = <String?>[];
+    final collectedIds = <String>[];
+
+    final completedQueryCount = await prefetch.prefetchDiscoveryQueries(
+      queries: const ['fish recipes', 'meat recipes'],
+      maxPagesPerQuery: 1,
+      requestRateLimiter: prefetch.createRequestRateLimiterForTest(
+        minimumInterval: Duration.zero,
+      ),
+      onVideosFetched: (videos) => collectedIds.addAll(
+        videos.map((video) => video.id),
+      ),
+      fetchPage: (query, pageToken) async {
+        requestedQueries.add(query);
+        requestedPageTokens.add(pageToken);
+        return {
+          'videos': <VideoModel>[
+            _buildVideo(
+              id: query.replaceAll(' ', '-'),
+              title: query,
+              description: 'Bangla cooking',
+            ),
+          ],
+          'nextPageToken': null,
+          'totalResults': 1,
+        };
+      },
+    );
+
+    expect(completedQueryCount, 2);
+    expect(requestedQueries, const ['fish recipes', 'meat recipes']);
+    expect(requestedPageTokens, const <String?>[null, null]);
+    expect(collectedIds, const ['fish-recipes', 'meat-recipes']);
+  });
+
   test('writeDerivedCategoryFeeds builds category files from existing videos', () async {
     final rootDirectory = await Directory.systemTemp.createTemp(
       'prefetch-derived-category-test',

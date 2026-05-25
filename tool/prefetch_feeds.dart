@@ -79,6 +79,22 @@ Future<void> main(List<String> args) async {
       ),
     );
 
+    final discoveryQueryCount = await prefetchDiscoveryQueries(
+      queries: AppConstants.searchQueries,
+      maxPagesPerQuery: AppConstants.prefetchDiscoveryPagesPerQuery,
+      requestRateLimiter: requestRateLimiter,
+      onVideosFetched: (videos) => _addToSearchIndex(searchIndex, videos),
+      fetchPage: (query, pageToken) => youtubeService.searchWithDetails(
+        query: query,
+        maxResults: AppConstants.maxResults,
+        pageToken: pageToken,
+        order: 'relevance',
+      ),
+    );
+    stdout.writeln(
+      'Expanded category pool with $discoveryQueryCount discovery queries.',
+    );
+
     final categorySummaries = await writeDerivedCategoryFeeds(
       rootDirectory: stagingDir,
       generatedAt: generatedAt,
@@ -240,6 +256,48 @@ Future<T> runWithYouTubeRateLimitRetry<T>({
   }
 
   throw StateError('Unreachable retry loop for $operationLabel.');
+}
+
+Future<int> prefetchDiscoveryQueries({
+  required List<String> queries,
+  required int maxPagesPerQuery,
+  required _PrefetchRequestRateLimiter requestRateLimiter,
+  void Function(List<VideoModel> videos)? onVideosFetched,
+  required Future<Map<String, dynamic>> Function(String query, String? pageToken)
+  fetchPage,
+}) async {
+  var completedQueryCount = 0;
+
+  for (final query in queries) {
+    String? pageToken;
+    var fetchedAnyVideos = false;
+
+    for (var page = 1; page <= maxPagesPerQuery; page++) {
+      await requestRateLimiter.waitForTurn();
+      final result = await runWithYouTubeRateLimitRetry(
+        operationLabel: 'discovery query "$query" page $page',
+        operation: () => fetchPage(query, pageToken),
+      );
+
+      final videos = result['videos'] as List<VideoModel>;
+      final nextPageToken = result['nextPageToken'] as String?;
+      if (videos.isNotEmpty) {
+        onVideosFetched?.call(videos);
+        fetchedAnyVideos = true;
+      }
+
+      pageToken = nextPageToken;
+      if (nextPageToken == null) {
+        break;
+      }
+    }
+
+    if (fetchedAnyVideos) {
+      completedQueryCount += 1;
+    }
+  }
+
+  return completedQueryCount;
 }
 
 String? _publicNextPageToken({
@@ -504,6 +562,12 @@ class _PrefetchRequestRateLimiter {
 
     _lastRequestStartedAt = _clock();
   }
+}
+
+_PrefetchRequestRateLimiter createRequestRateLimiterForTest({
+  required Duration minimumInterval,
+}) {
+  return _PrefetchRequestRateLimiter(minimumInterval: minimumInterval);
 }
 
 void _printUsage() {
