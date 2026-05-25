@@ -43,10 +43,11 @@ class CacheService {
     String? nextPageToken,
   }) async {
     final p = await prefs;
+    final sanitizedVideos = VideoModel.filterSupportedFeedVideos(videos);
     final data = {
       'version': AppConstants.videoCacheSchemaVersion,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'videos': videos.map((v) => v.toJson()).toList(),
+      'videos': sanitizedVideos.map((v) => v.toJson()).toList(),
       'nextPageToken': nextPageToken,
     };
     await p.setString('${AppConstants.cacheKeyPrefix}$key', json.encode(data));
@@ -73,10 +74,11 @@ class CacheService {
     }
 
     final videosJson = data['videos'] as List<dynamic>? ?? const [];
+    final videos = VideoModel.filterSupportedFeedVideos(
+      videosJson.map((v) => VideoModel.fromJson(v as Map<String, dynamic>)),
+    );
     return CachedVideoFeed(
-      videos: videosJson
-          .map((v) => VideoModel.fromJson(v as Map<String, dynamic>))
-          .toList(),
+      videos: videos,
       nextPageToken: data.containsKey('nextPageToken')
           ? data['nextPageToken'] as String?
           : null,
@@ -150,7 +152,9 @@ class CacheService {
 
   Future<void> saveFavoriteVideos(List<VideoModel> videos) async {
     final p = await prefs;
-    final data = videos.map((v) => v.toJson()).toList();
+    final data = VideoModel.filterSupportedFeedVideos(
+      videos,
+    ).map((v) => v.toJson()).toList();
     await p.setString('favorite_videos_data', json.encode(data));
   }
 
@@ -161,9 +165,9 @@ class CacheService {
 
     try {
       final data = json.decode(cached) as List<dynamic>;
-      return data
-          .map((v) => VideoModel.fromJson(v as Map<String, dynamic>))
-          .toList();
+      return VideoModel.filterSupportedFeedVideos(
+        data.map((v) => VideoModel.fromJson(v as Map<String, dynamic>)),
+      );
     } catch (_) {
       return [];
     }

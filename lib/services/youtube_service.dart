@@ -20,6 +20,16 @@ class YouTubeApiException implements Exception {
 
   bool get isQuotaExceeded => reason == 'quotaExceeded';
 
+  bool get isRateLimited {
+    final normalizedMessage = message.toLowerCase();
+    return statusCode == 429 ||
+        reason == 'rateLimitExceeded' ||
+        reason == 'userRateLimitExceeded' ||
+        normalizedMessage.contains('per minute');
+  }
+
+  bool get isQuotaLimited => isQuotaExceeded || isRateLimited;
+
   @override
   String toString() => 'YouTube API error: $statusCode - $message';
 }
@@ -116,13 +126,16 @@ class YouTubeService {
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
           final items = data['items'] as List<dynamic>? ?? [];
-          final videos = items
-              .where((item) => _isEmbeddableVideo(item as Map<String, dynamic>))
-              .map(
-                (item) =>
-                    VideoModel.fromVideoJson(item as Map<String, dynamic>),
-              )
-              .toList();
+          final videos = VideoModel.filterSupportedFeedVideos(
+            items
+                .where(
+                  (item) => _isEmbeddableVideo(item as Map<String, dynamic>),
+                )
+                .map(
+                  (item) =>
+                      VideoModel.fromVideoJson(item as Map<String, dynamic>),
+                ),
+          );
           allVideos.addAll(videos);
         }
       } catch (e) {

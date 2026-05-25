@@ -18,8 +18,17 @@ class FavoritesProvider extends ChangeNotifier {
     if (_isLoaded) return;
 
     final ids = await _cacheService.getFavoriteIds();
-    _favoriteIds = ids.toSet();
     _favorites = await _cacheService.getFavoriteVideos();
+    _favoriteIds = _favorites.map((video) => video.id).toSet();
+
+    final staleIds = ids.where((id) => !_favoriteIds.contains(id)).toList();
+    if (staleIds.isNotEmpty) {
+      for (final staleId in staleIds) {
+        await _cacheService.removeFavorite(staleId);
+      }
+      await _cacheService.saveFavoriteVideos(_favorites);
+    }
+
     _isLoaded = true;
     notifyListeners();
   }
@@ -31,6 +40,10 @@ class FavoritesProvider extends ChangeNotifier {
 
   /// Toggle favorite status
   Future<void> toggleFavorite(VideoModel video) async {
+    if (!_favoriteIds.contains(video.id) && video.isShortForm) {
+      return;
+    }
+
     if (_favoriteIds.contains(video.id)) {
       // Remove from favorites
       _favoriteIds.remove(video.id);

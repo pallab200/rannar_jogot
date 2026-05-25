@@ -1,4 +1,15 @@
 class VideoModel {
+  static final RegExp _isoDurationPattern = RegExp(
+    r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?',
+  );
+  static final RegExp _clockDurationPattern = RegExp(
+    r'^(?:(\d+):)?(\d{1,2}):(\d{2})$',
+  );
+  static final RegExp _shortsMarkerPattern = RegExp(
+    r'(^|[^a-z0-9])#?shorts([^a-z0-9]|$)',
+    caseSensitive: false,
+  );
+
   final String id;
   final String title;
   final String description;
@@ -65,14 +76,12 @@ class VideoModel {
   }
 
   static String _parseDuration(String isoDuration) {
-    if (isoDuration.isEmpty) return '';
-    final regex = RegExp(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?');
-    final match = regex.firstMatch(isoDuration);
-    if (match == null) return '';
+    final totalSeconds = _durationToSeconds(isoDuration);
+    if (totalSeconds == null) return '';
 
-    final hours = int.tryParse(match.group(1) ?? '0') ?? 0;
-    final minutes = int.tryParse(match.group(2) ?? '0') ?? 0;
-    final seconds = int.tryParse(match.group(3) ?? '0') ?? 0;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
 
     if (hours > 0) {
       return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
@@ -142,6 +151,54 @@ class VideoModel {
       category: category ?? this.category,
       isFavorite: isFavorite ?? this.isFavorite,
     );
+  }
+
+  bool get isShortForm {
+    if (_containsShortsMarker(title) || _containsShortsMarker(description)) {
+      return true;
+    }
+
+    final durationSeconds = _durationToSeconds(duration);
+    return durationSeconds != null && durationSeconds <= 60;
+  }
+
+  static List<VideoModel> filterSupportedFeedVideos(
+    Iterable<VideoModel> videos,
+  ) {
+    return videos.where((video) => !video.isShortForm).toList(growable: false);
+  }
+
+  static bool _containsShortsMarker(String value) {
+    if (value.isEmpty) {
+      return false;
+    }
+
+    return _shortsMarkerPattern.hasMatch(value);
+  }
+
+  static int? _durationToSeconds(String value) {
+    if (value.isEmpty) {
+      return null;
+    }
+
+    final normalized = value.trim();
+    final clockMatch = _clockDurationPattern.firstMatch(normalized);
+    if (clockMatch != null) {
+      final hours = int.tryParse(clockMatch.group(1) ?? '0') ?? 0;
+      final minutes = int.tryParse(clockMatch.group(2) ?? '0') ?? 0;
+      final seconds = int.tryParse(clockMatch.group(3) ?? '0') ?? 0;
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    final isoMatch = _isoDurationPattern.firstMatch(normalized);
+    if (isoMatch == null) {
+      return null;
+    }
+
+    final hours = int.tryParse(isoMatch.group(1) ?? '0') ?? 0;
+    final minutes = int.tryParse(isoMatch.group(2) ?? '0') ?? 0;
+    final seconds = int.tryParse(isoMatch.group(3) ?? '0') ?? 0;
+    return hours * 3600 + minutes * 60 + seconds;
   }
 
   String get formattedViewCount {

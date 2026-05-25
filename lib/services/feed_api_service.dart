@@ -112,11 +112,12 @@ class FeedApiService {
 
       final data = json.decode(response.body) as Map<String, dynamic>;
       final videosJson = data['videos'] as List<dynamic>? ?? const [];
+      final videos = VideoModel.filterSupportedFeedVideos(
+        videosJson.map((item) => VideoModel.fromJson(item as Map<String, dynamic>)),
+      );
 
       return {
-        'videos': videosJson
-            .map((item) => VideoModel.fromJson(item as Map<String, dynamic>))
-            .toList(),
+        'videos': videos,
         'nextPageToken': data['nextPageToken']?.toString(),
         'totalResults': data['totalResults'] as int? ?? videosJson.length,
         'source': 'remote',
@@ -145,9 +146,9 @@ class FeedApiService {
 
       final data = json.decode(response.body) as Map<String, dynamic>;
       final videosJson = data['videos'] as List<dynamic>? ?? const [];
-      _searchIndexCache = videosJson
-          .map((item) => VideoModel.fromJson(item as Map<String, dynamic>))
-          .toList(growable: false);
+      _searchIndexCache = VideoModel.filterSupportedFeedVideos(
+        videosJson.map((item) => VideoModel.fromJson(item as Map<String, dynamic>)),
+      );
       return _searchIndexCache;
     } catch (_) {
       return null;

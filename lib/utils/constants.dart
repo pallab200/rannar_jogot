@@ -5,9 +5,11 @@ class AppConstants {
     defaultValue: '',
   );
   static const String youtubeBaseUrl = 'https://www.googleapis.com/youtube/v3';
-  static const int maxResults = 40;
-  static const int searchMaxResults = 25;
-  static const int prefetchPageCount = 1;
+  static const int maxResults = 50;
+  static const int searchMaxResults = 50;
+  static const int prefetchPageCount = 3;
+  static const int initialLatestPageCount = 2;
+  static const int initialTrendingPageCount = 2;
 
   // Optional remote feed server
   static const String feedApiBaseUrl = String.fromEnvironment(
@@ -41,7 +43,7 @@ class AppConstants {
   static const String favoritesKey = 'favorite_videos';
   static const String searchHistoryKey = 'search_history';
   static const String themeKey = 'dark_mode';
-  static const int videoCacheSchemaVersion = 2;
+  static const int videoCacheSchemaVersion = 3;
   static const int cacheDurationMinutes = 360;
   static const int feedCacheDurationMinutes = 360;
   static const int searchCacheDurationMinutes = 120;

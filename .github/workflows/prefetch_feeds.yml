@@ -17,7 +17,7 @@ on:
       pages:
         description: Pages to prefetch per feed
         required: false
-        default: '1'
+        default: '3'
   schedule:
     - cron: '0 3 * * *'
 
@@ -56,7 +56,7 @@ jobs:
 
           PAGES="${{ github.event.inputs.pages }}"
           if [ -z "$PAGES" ]; then
-            PAGES=1
+            PAGES=3
           fi
 
           dart run -DYOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} tool/prefetch_feeds.dart --output prefetched_feeds --pages "$PAGES"

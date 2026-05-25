@@ -9,9 +9,17 @@ import '../utils/constants.dart';
 enum LoadingState { initial, loading, loaded, error }
 
 class VideoProvider extends ChangeNotifier {
-  final VideoFeedService _videoFeedService = VideoFeedService();
-  final CategoryService _categoryService = CategoryService();
-  final CacheService _cacheService = CacheService();
+  VideoProvider({
+    VideoFeedService? videoFeedService,
+    CategoryService? categoryService,
+    CacheService? cacheService,
+  }) : _videoFeedService = videoFeedService ?? VideoFeedService(),
+       _categoryService = categoryService ?? CategoryService(),
+       _cacheService = cacheService ?? CacheService();
+
+  final VideoFeedService _videoFeedService;
+  final CategoryService _categoryService;
+  final CacheService _cacheService;
 
   // State
   LoadingState _state = LoadingState.initial;
@@ -90,8 +98,10 @@ class VideoProvider extends ChangeNotifier {
       }
 
       await Future.wait([
-        _fetchLatestVideos(reset: true),
-        fetchTrending(reset: true),
+        _primeLatestVideos(pageCount: AppConstants.initialLatestPageCount),
+        _primeTrendingVideos(
+          pageCount: AppConstants.initialTrendingPageCount,
+        ),
       ]);
 
       _state = LoadingState.loaded;
@@ -126,8 +136,10 @@ class VideoProvider extends ChangeNotifier {
   Future<void> _refreshInBackground() async {
     try {
       await Future.wait([
-        _fetchLatestVideos(reset: true),
-        fetchTrending(reset: true),
+        _primeLatestVideos(pageCount: AppConstants.initialLatestPageCount),
+        _primeTrendingVideos(
+          pageCount: AppConstants.initialTrendingPageCount,
+        ),
       ]);
       _state = LoadingState.loaded;
       notifyListeners();
@@ -136,30 +148,52 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _primeLatestVideos({required int pageCount}) async {
+    for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      await _fetchLatestVideos(reset: pageIndex == 0);
+      if (_latestNextPageToken == null) {
+        break;
+      }
+    }
+  }
+
   /// Fetch trending videos
   Future<void> fetchTrending({bool reset = false}) async {
     try {
-      if (reset) {
-        _trendingNextPageToken = null;
-      }
-
-      final result = await _videoFeedService.getTrendingVideos(
-        pageToken: reset ? null : _trendingNextPageToken,
-      );
-      final fetchedVideos = _categoryService.categorizeVideos(
-        result['videos'] as List<VideoModel>,
-      );
-
-      if (reset) {
-        _trendingVideos = fetchedVideos;
-      } else {
-        _trendingVideos = _mergeUniqueVideos(_trendingVideos, fetchedVideos);
-      }
-
-      _trendingNextPageToken = result['nextPageToken'] as String?;
-      await _cacheService.cacheVideos('trending', _trendingVideos);
+      await _fetchTrendingVideos(reset: reset);
       notifyListeners();
     } catch (_) {}
+  }
+
+  Future<void> _primeTrendingVideos({required int pageCount}) async {
+    for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      await _fetchTrendingVideos(reset: pageIndex == 0);
+      if (_trendingNextPageToken == null) {
+        break;
+      }
+    }
+  }
+
+  Future<void> _fetchTrendingVideos({required bool reset}) async {
+    if (reset) {
+      _trendingNextPageToken = null;
+    }
+
+    final result = await _videoFeedService.getTrendingVideos(
+      pageToken: reset ? null : _trendingNextPageToken,
+    );
+    final fetchedVideos = _categoryService.categorizeVideos(
+      result['videos'] as List<VideoModel>,
+    );
+
+    if (reset) {
+      _trendingVideos = fetchedVideos;
+    } else {
+      _trendingVideos = _mergeUniqueVideos(_trendingVideos, fetchedVideos);
+    }
+
+    _trendingNextPageToken = result['nextPageToken'] as String?;
+    await _cacheService.cacheVideos('trending', _trendingVideos);
   }
 
   Future<void> loadMoreTrending() async {
@@ -418,8 +452,10 @@ class VideoProvider extends ChangeNotifier {
 
     try {
       await Future.wait([
-        _fetchLatestVideos(reset: true),
-        fetchTrending(reset: true),
+        _primeLatestVideos(pageCount: AppConstants.initialLatestPageCount),
+        _primeTrendingVideos(
+          pageCount: AppConstants.initialTrendingPageCount,
+        ),
       ]);
       _state = LoadingState.loaded;
     } catch (e) {

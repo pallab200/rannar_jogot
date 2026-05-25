@@ -30,9 +30,23 @@ void main() {
               'category': 'general',
               'isFavorite': false,
             },
+            {
+              'id': 'short123',
+              'title': '#Shorts quick snack',
+              'description': 'Fast short-form recipe',
+              'thumbnailUrl': 'https://img.youtube.com/vi/short123/hqdefault.jpg',
+              'channelTitle': 'Cooking Channel',
+              'channelId': 'channel-1',
+              'publishedAt': '2026-05-20T11:00:00Z',
+              'duration': '00:45',
+              'viewCount': '900',
+              'likeCount': '12',
+              'category': 'general',
+              'isFavorite': false,
+            },
           ],
           'nextPageToken': 'yt:CAoQAA',
-          'totalResults': 1,
+          'totalResults': 2,
         }),
         200,
         headers: {'content-type': 'application/json'},
@@ -50,7 +64,7 @@ void main() {
     expect(videos, hasLength(1));
     expect(videos.first.id, 'abc123');
     expect(result?['nextPageToken'], 'yt:CAoQAA');
-    expect(result?['totalResults'], 1);
+    expect(result?['totalResults'], 2);
   });
 
   test(
