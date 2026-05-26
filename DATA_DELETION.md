@@ -54,7 +54,7 @@ The following data is **not** managed by Rannar Jogot and persists after deletio
 
 For additional questions or to verify data deletion:
 
-- **Email:** support@rannarjogot.app
+- **Email:** tapallab00@gmail.com
 - **GitHub Issues:** https://github.com/pallab200/rannar_jogot/issues
 
 ---

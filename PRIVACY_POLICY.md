@@ -65,8 +65,8 @@ We may update this Privacy Policy periodically. We will notify you of material c
 ## 10. Contact Us
 
 If you have questions about this Privacy Policy or our data practices, please contact us at:
-- **Email:** [Your Contact Email]
-- **GitHub Issues:** https://github.com/[your-repo]/rannar_jogot/issues
+- **Email:** tapallab00@gmail.com
+- **GitHub Issues:** https://github.com/pallab200/rannar_jogot/issues
 
 ## 11. Third-Party Links
 
