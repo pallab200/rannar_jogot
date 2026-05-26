@@ -11,10 +11,10 @@ You have several free options:
 1. Create a `gh-pages` branch in your repo
 2. Add `PRIVACY_POLICY.md` to the root
 3. Enable GitHub Pages in repo Settings → Pages → Source: `gh-pages` branch
-4. URL will be: `https://<your-github-username>.github.io/<repo-name>/PRIVACY_POLICY.md`
+4. URL will be: `https://pallab200.github.io/rannar_jogot/PRIVACY_POLICY.md`
 
 **Alternative:** Add to your repo's `docs/` folder and link to the raw file:
-- URL: `https://raw.githubusercontent.com/<your-username>/<repo>/main/PRIVACY_POLICY.md`
+- URL: `https://raw.githubusercontent.com/pallab200/rannar_jogot/main/PRIVACY_POLICY.md`
 
 ### Option B: Google Sites (Free, simple)
 1. Create a free Google Site: https://sites.google.com
@@ -28,8 +28,8 @@ If you have a domain, host the privacy policy there.
 ## Step 2: Customize the Privacy Policy
 
 Edit `PRIVACY_POLICY.md` and fill in:
-- **[Your Contact Email]:** Use a real email (e.g., `support@rannarjogot.app`)
-- **[your-repo]:** Your GitHub username/repo (if using GitHub)
+- **Email:** `tapallab00@gmail.com`
+- **GitHub Issues:** `https://github.com/pallab200/rannar_jogot/issues`
 - Add any additional data practices specific to your app
 
 ## Step 3: Add to Google Play Console
@@ -42,8 +42,8 @@ Edit `PRIVACY_POLICY.md` and fill in:
 6. **Save & Review**
 
 ### Example URLs:
-- GitHub: `https://github.com/username/rannar_jogot/blob/main/PRIVACY_POLICY.md`
-- GitHub Raw: `https://raw.githubusercontent.com/username/rannar_jogot/main/PRIVACY_POLICY.md`
+- GitHub: `https://github.com/pallab200/rannar_jogot/blob/main/PRIVACY_POLICY.md`
+- GitHub Raw: `https://raw.githubusercontent.com/pallab200/rannar_jogot/main/PRIVACY_POLICY.md`
 - Google Sites: `https://sites.google.com/view/rannar-jogot-privacy`
 
 ## Step 4: Verify Content Requirements
