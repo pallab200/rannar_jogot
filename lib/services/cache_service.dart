@@ -197,6 +197,42 @@ class CacheService {
     await p.remove(AppConstants.searchHistoryKey);
   }
 
+  // ─── Watch History ──────────────────────────────────────
+
+  Future<List<VideoModel>> getWatchHistory() async {
+    final p = await prefs;
+    final cached = p.getString(AppConstants.watchHistoryKey);
+    if (cached == null) return [];
+
+    try {
+      final data = json.decode(cached) as List<dynamic>;
+      return data.map((v) => VideoModel.fromJson(v as Map<String, dynamic>)).toList();
+    } catch (_) {
+      await p.remove(AppConstants.watchHistoryKey);
+      return [];
+    }
+  }
+
+  Future<void> addWatchVideo(VideoModel video) async {
+    final p = await prefs;
+    final history = await getWatchHistory();
+    history.removeWhere((item) => item.id == video.id);
+    history.insert(0, video);
+    if (history.length > 30) {
+      history.removeRange(30, history.length);
+    }
+
+    await p.setString(
+      AppConstants.watchHistoryKey,
+      json.encode(history.map((v) => v.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearWatchHistory() async {
+    final p = await prefs;
+    await p.remove(AppConstants.watchHistoryKey);
+  }
+
   // ─── Theme ───────────────────────────────────────────────
 
   Future<bool> isDarkMode() async {
@@ -207,5 +243,29 @@ class CacheService {
   Future<void> setDarkMode(bool value) async {
     final p = await prefs;
     await p.setBool(AppConstants.themeKey, value);
+  }
+
+  Future<String> getPreferredLanguage() async {
+    final p = await prefs;
+    final language = p.getString(AppConstants.preferredLanguageKey) ?? 'bn';
+    return language == 'en' ? 'en' : 'bn';
+  }
+
+  Future<void> setPreferredLanguage(String value) async {
+    final p = await prefs;
+    await p.setString(
+      AppConstants.preferredLanguageKey,
+      value == 'en' ? 'en' : 'bn',
+    );
+  }
+
+  Future<bool> isAutoplayEnabled() async {
+    final p = await prefs;
+    return p.getBool(AppConstants.autoPlayKey) ?? true;
+  }
+
+  Future<void> setAutoplayEnabled(bool value) async {
+    final p = await prefs;
+    await p.setBool(AppConstants.autoPlayKey, value);
   }
 }

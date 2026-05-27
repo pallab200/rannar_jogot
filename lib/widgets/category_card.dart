@@ -6,12 +6,14 @@ class CategoryCard extends StatelessWidget {
   final CategoryModel category;
   final VoidCallback onTap;
   final bool isSelected;
+  final String language;
 
   const CategoryCard({
     super.key,
     required this.category,
     required this.onTap,
     this.isSelected = false,
+    this.language = 'en',
   });
 
   @override
@@ -66,7 +68,7 @@ class CategoryCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Expanded(
                     child: Text(
-                      category.nameEn,
+                      category.getName(language),
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 13,

@@ -3,6 +3,7 @@ import 'dart:ui';
 class CategoryModel {
   final String id;
   final String nameEn;
+  final String nameBn;
   final String icon;
   final List<Color> gradientColors;
   final List<String> keywords;
@@ -11,6 +12,7 @@ class CategoryModel {
   CategoryModel({
     required this.id,
     required this.nameEn,
+    required this.nameBn,
     required this.icon,
     required this.gradientColors,
     required this.keywords,
@@ -22,11 +24,16 @@ class CategoryModel {
     return CategoryModel(
       id: map['id'] as String,
       nameEn: map['nameEn'] as String,
+      nameBn: map['nameBn'] as String? ?? map['nameEn'] as String,
       icon: map['icon'] as String,
       gradientColors: gradientHexList
           .map((hex) => Color(int.parse(hex as String)))
           .toList(),
       keywords: List<String>.from(map['keywords'] as List<dynamic>),
     );
+  }
+
+  String getName(String languageCode) {
+    return languageCode == 'bn' ? nameBn : nameEn;
   }
 }

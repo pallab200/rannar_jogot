@@ -7,12 +7,13 @@ class AppConstants {
   static const String youtubeBaseUrl = 'https://www.googleapis.com/youtube/v3';
   static const int maxResults = 50;
   static const int searchMaxResults = 50;
-  static const int prefetchPageCount = 3;
+  static const int prefetchPageCount = 6;
   static const int prefetchDiscoveryPagesPerQuery = 1;
   static const int prefetchSparseCategoryPagesPerQuery = 1;
   static const int prefetchSparseCategoryMinimumVideos = 12;
-  static const int initialLatestPageCount = 2;
-  static const int initialTrendingPageCount = 2;
+  static const int initialLatestPageCount = 3;
+  static const int initialTrendingPageCount = 3;
+  static const int initialCategoryPageCount = 2;
 
   // Optional remote feed server
   static const String feedApiBaseUrl = String.fromEnvironment(
@@ -22,8 +23,14 @@ class AppConstants {
 
   // App Info
   static const String appName = 'Rannar Jogot';
+  static const String appVersion = '1.0.0+1';
   static const String appSubtitle = 'Bangladeshi Cooking Videos';
   static const String appTagline = 'Discover the flavors of Bangladesh';
+  static const String appShareUrl =
+      'https://play.google.com/store/apps/details?id=com.rannarjogot.app';
+  static const String developerName = 'Tanzil Ahmed';
+  static const String developerEmail = 'tapallab00@gmail.com';
+  static const String offeredBy = 'New Dreams';
 
   // Feed queries
   static const String latestFeedQuery =
@@ -45,7 +52,10 @@ class AppConstants {
   static const String cacheKeyPrefix = 'cached_videos_';
   static const String favoritesKey = 'favorite_videos';
   static const String searchHistoryKey = 'search_history';
+  static const String watchHistoryKey = 'watch_history_videos';
   static const String themeKey = 'dark_mode';
+  static const String preferredLanguageKey = 'preferred_language';
+  static const String autoPlayKey = 'auto_play';
   static const int videoCacheSchemaVersion = 4;
   static const int cacheDurationMinutes = 360;
   static const int feedCacheDurationMinutes = 360;
@@ -57,6 +67,7 @@ class CategoryData {
     {
       'id': 'fish',
       'nameEn': 'Fish Curry',
+      'nameBn': 'মাছের রেসিপি',
       'icon': '🐟',
       'gradient': ['0xFFFF6B35', '0xFFFF8E53'],
       'keywords': [
@@ -103,6 +114,7 @@ class CategoryData {
     {
       'id': 'meat',
       'nameEn': 'Meat & Poultry',
+      'nameBn': 'মাংস ও পোল্ট্রি',
       'icon': '🍗',
       'gradient': ['0xFFE53935', '0xFFFF5252'],
       'keywords': [
@@ -148,6 +160,7 @@ class CategoryData {
     {
       'id': 'rice',
       'nameEn': 'Rice & Biryani',
+      'nameBn': 'ভাত ও বিরিয়ানি',
       'icon': '🍚',
       'gradient': ['0xFFFF8F00', '0xFFFFB300'],
       'keywords': [
@@ -183,6 +196,7 @@ class CategoryData {
     {
       'id': 'vegetables',
       'nameEn': 'Vegetables',
+      'nameBn': 'সবজি',
       'icon': '🥬',
       'gradient': ['0xFF43A047', '0xFF66BB6A'],
       'keywords': [
@@ -226,6 +240,7 @@ class CategoryData {
     {
       'id': 'snacks',
       'nameEn': 'Snacks & Street Food',
+      'nameBn': 'নাস্তা ও স্ট্রিট ফুড',
       'icon': '🥘',
       'gradient': ['0xFFFF6F00', '0xFFFFA000'],
       'keywords': [
@@ -274,6 +289,7 @@ class CategoryData {
     {
       'id': 'sweets',
       'nameEn': 'Sweets & Desserts',
+      'nameBn': 'মিষ্টি ও ডেজার্ট',
       'icon': '🍮',
       'gradient': ['0xFFE91E63', '0xFFFF5C8D'],
       'keywords': [
@@ -322,6 +338,7 @@ class CategoryData {
     {
       'id': 'dal',
       'nameEn': 'Dal & Lentils',
+      'nameBn': 'ডাল ও লেন্টিল',
       'icon': '🍲',
       'gradient': ['0xFFFF9800', '0xFFFFC107'],
       'keywords': [
@@ -355,6 +372,7 @@ class CategoryData {
     {
       'id': 'baking',
       'nameEn': 'Baking & Cakes',
+      'nameBn': 'বেকিং ও কেক',
       'icon': '🎂',
       'gradient': ['0xFF8E24AA', '0xFFAB47BC'],
       'keywords': [
@@ -392,6 +410,7 @@ class CategoryData {
     {
       'id': 'drinks',
       'nameEn': 'Drinks & Beverages',
+      'nameBn': 'পানীয় ও বেভারেজ',
       'icon': '🥤',
       'gradient': ['0xFF00ACC1', '0xFF26C6DA'],
       'keywords': [
@@ -429,6 +448,7 @@ class CategoryData {
     {
       'id': 'festival',
       'nameEn': 'Festival & Special',
+      'nameBn': 'উৎসব ও বিশেষ',
       'icon': '🎉',
       'gradient': ['0xFF6A1B9A', '0xFF9C27B0'],
       'keywords': [

@@ -17,13 +17,16 @@ on:
       pages:
         description: Pages to prefetch per feed
         required: false
-        default: '3'
+        default: '6'
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3,15 * * *'
 
 concurrency:
   group: prefetch-feeds
   cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: write
@@ -56,7 +59,7 @@ jobs:
 
           PAGES="${{ github.event.inputs.pages }}"
           if [ -z "$PAGES" ]; then
-            PAGES=3
+            PAGES=6
           fi
 
           dart run -DYOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} tool/prefetch_feeds.dart --output prefetched_feeds --pages "$PAGES"
@@ -112,11 +115,11 @@ jobs:
 
       - name: Upload Pages artifact
         if: steps.check_feeds.outputs.has_files == 'true'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - name: Deploy to GitHub Pages
         if: steps.check_feeds.outputs.has_files == 'true'
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -3,15 +3,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../models/video_model.dart';
 import '../providers/favorites_provider.dart';
+import '../providers/localization_provider.dart';
 import '../providers/video_provider.dart';
+import '../services/ad_service.dart';
+import '../services/cache_service.dart';
 import '../services/youtube_service.dart';
+import '../utils/app_strings.dart';
 import '../utils/constants.dart';
 import '../widgets/video_card.dart';
+
+enum _InterstitialTrigger { initial, timed }
 
 class VideoPlayerScreen extends StatefulWidget {
   final VideoModel video;
@@ -23,6 +31,7 @@ class VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  final CacheService _cacheService = CacheService();
   final YouTubeService _youtubeService = YouTubeService();
   static const MethodChannel _orientationChannel = MethodChannel(
     'rannar_jogot/orientation',
@@ -37,18 +46,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isFullscreen = false;
   bool _wasPlaying = false;
   Timer? _resumeTimer;
+  Timer? _interstitialTimer;
+  InterstitialAd? _interstitialAd;
+  bool _isAdShowing = false;
+  bool _hasShownInitialInterstitial = false;
+  bool _isPlaybackActive = false;
+  _InterstitialTrigger? _pendingInterstitialTrigger;
+  _InterstitialTrigger? _activeInterstitialTrigger;
+  bool _wasPlayingBeforeAd = false;
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    unawaited(context.read<VideoProvider>().addToWatchHistory(widget.video));
+    _loadInterstitialAd();
     _initializePlayer();
   }
 
   @override
   void dispose() {
+    _interstitialTimer?.cancel();
     _resumeTimer?.cancel();
     _subscription?.cancel();
+    _interstitialAd?.dispose();
     _controller?.close();
     // Restore portrait lock when leaving the screen
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -57,6 +78,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
+    final autoPlayEnabled = await _cacheService.isAutoplayEnabled();
+    if (!mounted) return;
+
     if (AppConstants.youtubeApiKey.isNotEmpty) {
       final isEmbeddable = await _youtubeService.isVideoEmbeddable(
         widget.video.id,
@@ -74,10 +98,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     final controller = YoutubePlayerController.fromVideoId(
       videoId: widget.video.id,
-      autoPlay: true,
+      autoPlay: autoPlayEnabled,
       params: const YoutubePlayerParams(
         showFullscreenButton: false,
         showControls: true,
+        showVideoAnnotations: false,
+        strictRelatedVideos: true,
+        privacyEnhancedMode: true,
         mute: false,
       ),
     );
@@ -115,12 +142,169 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           _wasPlaying = false;
         }
       }
+
+      _handlePlaybackState(value.playerState);
     });
 
     setState(() {
       _controller = controller;
       _isCheckingAvailability = false;
       _isVideoAvailable = true;
+    });
+  }
+
+  void _loadInterstitialAd() {
+    if (!AdService.supportsAds || _interstitialAd != null) {
+      return;
+    }
+
+    InterstitialAd.load(
+      adUnitId: AdService.interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          if (!mounted) {
+            ad.dispose();
+            return;
+          }
+
+          _interstitialAd = ad;
+          _attachInterstitialCallbacks(ad);
+          _showInterstitialIfReady();
+        },
+        onAdFailedToLoad: (_) {
+          _interstitialAd = null;
+        },
+      ),
+    );
+  }
+
+  void _attachInterstitialCallbacks(InterstitialAd ad) {
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        _isAdShowing = true;
+        if (_activeInterstitialTrigger == _InterstitialTrigger.initial) {
+          _hasShownInitialInterstitial = true;
+        }
+        _interstitialTimer?.cancel();
+
+        // Pause video when ad shows
+        final controller = _controller;
+        if (controller != null &&
+            controller.value.playerState == PlayerState.playing) {
+          _wasPlayingBeforeAd = true;
+          controller.pauseVideo();
+        } else {
+          _wasPlayingBeforeAd = false;
+        }
+      },
+      onAdDismissedFullScreenContent: (ad) {
+        _isAdShowing = false;
+        _activeInterstitialTrigger = null;
+        ad.dispose();
+
+        // Resume video if it was playing before the ad
+        if (_wasPlayingBeforeAd && _controller != null) {
+          _controller!.playVideo();
+          _wasPlayingBeforeAd = false;
+        }
+
+        _loadInterstitialAd();
+        if (_isPlaybackActive) {
+          _scheduleTimedInterstitial();
+        }
+      },
+      onAdFailedToShowFullScreenContent: (ad, _) {
+        _isAdShowing = false;
+        _activeInterstitialTrigger = null;
+        ad.dispose();
+
+        // Resume video if it was playing before the ad
+        if (_wasPlayingBeforeAd && _controller != null) {
+          _controller!.playVideo();
+          _wasPlayingBeforeAd = false;
+        }
+
+        _loadInterstitialAd();
+        if (_isPlaybackActive) {
+          _scheduleTimedInterstitial();
+        }
+      },
+    );
+  }
+
+  void _requestInterstitial(_InterstitialTrigger trigger) {
+    if (!AdService.supportsAds || _isAdShowing) {
+      return;
+    }
+
+    if (_pendingInterstitialTrigger == trigger ||
+        _activeInterstitialTrigger == trigger) {
+      return;
+    }
+
+    _pendingInterstitialTrigger = trigger;
+    _showInterstitialIfReady();
+    _loadInterstitialAd();
+  }
+
+  void _showInterstitialIfReady() {
+    final ad = _interstitialAd;
+    final trigger = _pendingInterstitialTrigger;
+    if (!mounted ||
+        ad == null ||
+        trigger == null ||
+        _isAdShowing ||
+        !_isPlaybackActive) {
+      return;
+    }
+
+    _activeInterstitialTrigger = trigger;
+    _pendingInterstitialTrigger = null;
+    _interstitialAd = null;
+    ad.show();
+  }
+
+  void _handlePlaybackState(PlayerState state) {
+    final isPlaybackActive =
+        state == PlayerState.playing || state == PlayerState.buffering;
+
+    if (state == PlayerState.playing &&
+        !_hasShownInitialInterstitial &&
+        _pendingInterstitialTrigger != _InterstitialTrigger.initial &&
+        _activeInterstitialTrigger != _InterstitialTrigger.initial) {
+      _requestInterstitial(_InterstitialTrigger.initial);
+    }
+
+    if (_isPlaybackActive == isPlaybackActive) {
+      if (isPlaybackActive) {
+        _showInterstitialIfReady();
+      }
+      return;
+    }
+
+    _isPlaybackActive = isPlaybackActive;
+    if (!isPlaybackActive) {
+      _interstitialTimer?.cancel();
+      return;
+    }
+
+    _showInterstitialIfReady();
+    _scheduleTimedInterstitial();
+  }
+
+  void _scheduleTimedInterstitial() {
+    _interstitialTimer?.cancel();
+    if (!_isPlaybackActive || _isAdShowing) {
+      return;
+    }
+
+    _interstitialTimer = Timer(AdService.interstitialInterval, () {
+      if (!mounted || !_isPlaybackActive) {
+        return;
+      }
+
+      _requestInterstitial(_InterstitialTrigger.timed);
     });
   }
 
@@ -292,10 +476,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onPressed: () => fp.toggleFavorite(widget.video),
             );
           },
-        ),
-        IconButton(
-          icon: const Icon(Icons.open_in_browser_rounded),
-          onPressed: () => _openInYouTube(),
         ),
         IconButton(
           icon: const Icon(Icons.share_rounded),
@@ -561,14 +741,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  void _shareVideo() {
+  Future<void> _shareVideo() {
+    final language = context.read<LocalizationProvider>().currentLanguage;
     final url = 'https://youtu.be/${widget.video.id}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Link copied: $url'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
+    final shareText = [
+      widget.video.title,
+      url,
+      '',
+      AppStrings.getByLang('shareVideoMessage', language),
+      AppConstants.appShareUrl,
+    ].join('\n');
+
+    return SharePlus.instance.share(
+      ShareParams(text: shareText, subject: widget.video.title),
     );
   }
 

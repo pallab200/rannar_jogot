@@ -1,4 +1,4 @@
-package com.rannarjogot.rannar_jogot
+package com.rannarjogot.app
 
 import android.content.pm.ActivityInfo
 import io.flutter.embedding.android.FlutterActivity

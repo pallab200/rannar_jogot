@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/category_model.dart';
 import '../providers/video_provider.dart';
+import '../providers/localization_provider.dart';
+import '../services/ad_service.dart';
 import '../widgets/video_card.dart';
 import '../widgets/shimmer_loading.dart';
+import '../widgets/test_banner_ad.dart';
 import 'video_player_screen.dart';
 
 class CategoryVideoScreen extends StatefulWidget {
@@ -78,76 +81,79 @@ class _CategoryVideoScreenState extends State<CategoryVideoScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // Gradient App Bar
-          SliverAppBar(
-            expandedHeight: 140,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.category.icon,
-                    style: const TextStyle(fontSize: 20),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      widget.category.nameEn,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
+    return Consumer<LocalizationProvider>(
+      builder: (context, locProvider, _) {
+        final lang = locProvider.currentLanguage;
+        return Scaffold(
+          body: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // Gradient App Bar
+              SliverAppBar(
+                expandedHeight: 140,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.category.icon,
+                        style: const TextStyle(fontSize: 20),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          widget.category.getName(lang),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: widget.category.gradientColors,
+                      ),
+                    ),
+                    child: Center(
+                      child: Opacity(
+                        opacity: 0.15,
+                        child: Text(
+                          widget.category.icon,
+                          style: const TextStyle(fontSize: 100),
+                        ),
+                      ),
                     ),
                   ),
-                ],
-              ),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: widget.category.gradientColors,
-                  ),
                 ),
-                child: Center(
-                  child: Opacity(
-                    opacity: 0.15,
-                    child: Text(
-                      widget.category.icon,
-                      style: const TextStyle(fontSize: 100),
-                    ),
-                  ),
+                backgroundColor: widget.category.gradientColors.first,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-            ),
-            backgroundColor: widget.category.gradientColors.first,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
 
-          // Video list
-          Consumer<VideoProvider>(
-            builder: (context, vp, _) {
-              final videos = vp.getVideosByCategory(widget.category.id);
-              final isLoadingCategory = vp.isLoadingCategory(
-                widget.category.id,
-              );
+              // Video list
+              Consumer<VideoProvider>(
+                builder: (context, vp, _) {
+                  final videos = vp.getVideosByCategory(widget.category.id);
+                  final isLoadingCategory = vp.isLoadingCategory(
+                    widget.category.id,
+                  );
 
-              if ((vp.state == LoadingState.loading || isLoadingCategory) &&
-                  videos.isEmpty) {
-                return const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 16),
+                  if ((vp.state == LoadingState.loading || isLoadingCategory) &&
+                      videos.isEmpty) {
+                    return const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 16),
                     child: ShimmerLoading(isCompact: true, itemCount: 6),
                   ),
                 );
@@ -181,7 +187,15 @@ class _CategoryVideoScreenState extends State<CategoryVideoScreen> {
 
               return SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final video = videos[index];
+                  final includeBanners = AdService.supportsAds;
+                  if (includeBanners && AdService.isBannerIndex(index)) {
+                    return const TestBannerAdListItem();
+                  }
+
+                  final videoIndex = includeBanners
+                      ? AdService.videoIndexForListIndex(index)
+                      : index;
+                  final video = videos[videoIndex];
                   return VideoCard(
                     video: video,
                     isCompact: true,
@@ -192,7 +206,9 @@ class _CategoryVideoScreenState extends State<CategoryVideoScreen> {
                       ),
                     ),
                   );
-                }, childCount: videos.length),
+                }, childCount: AdService.supportsAds
+                    ? AdService.listItemCountForVideos(videos.length)
+                    : videos.length),
               );
             },
           ),
@@ -213,6 +229,8 @@ class _CategoryVideoScreenState extends State<CategoryVideoScreen> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 }

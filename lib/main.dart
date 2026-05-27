@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import 'providers/video_provider.dart';
 import 'providers/favorites_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/localization_provider.dart';
+import 'services/ad_service.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AdService.initialize();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -29,6 +32,7 @@ class RannarJogotApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => VideoProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => LocalizationProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (_, themeProvider, _) {

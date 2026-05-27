@@ -256,7 +256,10 @@ class VideoProvider extends ChangeNotifier {
   }
 
   Future<void> refreshCategoryVideos(String categoryId) async {
-    await _fetchCategoryVideos(categoryId, reset: true);
+    await _primeCategoryVideos(
+      categoryId,
+      pageCount: AppConstants.initialCategoryPageCount,
+    );
   }
 
   Future<void> loadMoreCategoryVideos(String categoryId) async {
@@ -336,6 +339,18 @@ class VideoProvider extends ChangeNotifier {
     } finally {
       _categoryLoading.remove(categoryId);
       notifyListeners();
+    }
+  }
+
+  Future<void> _primeCategoryVideos(
+    String categoryId, {
+    required int pageCount,
+  }) async {
+    for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      await _fetchCategoryVideos(categoryId, reset: pageIndex == 0);
+      if (_categoryNextPageTokens[categoryId] == null) {
+        break;
+      }
     }
   }
 
@@ -525,9 +540,26 @@ class VideoProvider extends ChangeNotifier {
     return _cacheService.getSearchHistory();
   }
 
+  /// Get watched video history
+  Future<List<VideoModel>> getWatchHistory() {
+    return _cacheService.getWatchHistory();
+  }
+
+  /// Save a watched video in history
+  Future<void> addToWatchHistory(VideoModel video) async {
+    await _cacheService.addWatchVideo(video);
+    notifyListeners();
+  }
+
   /// Clear search history
   Future<void> clearSearchHistory() async {
     await _cacheService.clearSearchHistory();
+    notifyListeners();
+  }
+
+  /// Clear watched video history
+  Future<void> clearWatchHistory() async {
+    await _cacheService.clearWatchHistory();
     notifyListeners();
   }
 
